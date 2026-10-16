@@ -44,3 +44,7 @@ test("limits name what the scenarios do not measure", () => {
   assert.match(md, /gật đầu[^\n]*chưa/);
   assert.match(md, /chưa có kịch bản riêng[^\n]*PERCLOS/i);
 });
+
+test("limits state the blind spot: a held alarm expires while the head is out of range", () => {
+  assert.match(evidenceMarkdown(cmp, { logs, people: 3 }), /gục[^\n]*KHÔNG CHẮC[^\n]*3 giây[^\n]*không còn được cảnh báo/);
+});

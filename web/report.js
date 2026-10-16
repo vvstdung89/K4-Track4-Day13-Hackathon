@@ -59,6 +59,7 @@ export function evidenceMarkdown(cmp, { logs, people } = {}) {
     "PERCLOS tính theo ngưỡng 55% mức mở mắt của từng người, không phải chuẩn 80% khép mắt.",
     "Kịch bản điều kiện xấu (kính, đèn rọi, thiếu sáng) chỉ đo độ phủ, chưa đo tỷ lệ kết quả đúng hoặc KHÔNG CHẮC, nên chưa chứng minh hệ thống an toàn khi điều kiện xấu.",
     "Hệ thống chưa nhận diện gật đầu nên chưa kịch bản nào đo gật đầu.",
+    "Khi đầu lệch quá giới hạn góc (ví dụ gục xuống) hệ thống coi là KHÔNG CHẮC và chỉ giữ cảnh báo tối đa 3 giây (mặc định) rồi về TỈNH, nên người ngủ gục lâu hơn thế có thể không còn được cảnh báo.",
     "Chưa có kịch bản riêng cho PERCLOS và mức CHÚ Ý do PERCLOS gây ra, nên các ngưỡng này chưa được kiểm chứng riêng.",
   );
 
