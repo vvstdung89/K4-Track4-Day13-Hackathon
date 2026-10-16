@@ -60,7 +60,9 @@ All numbers live in `config`; the values above are starting points to tune on re
 ## Log and score
 - CSV columns: `t_ms, face, ear, mar, yaw, pitch, label_key`. Hold **1** = `microsleep`, **2** = `yawn` while performing it.
 - Scenario chosen before recording, stored in the file name. Scenarios: tinh-tao, nhin-guong, microsleep, ngap, dieu-kien-xau.
-- Event = contiguous run of one label. Hit: `microsleep` needs `CANH_BAO`, `yawn` needs `CHU_Y` or above, within [start, end + 3 s].
+- Event = run of one label; the same label released and pressed again within 0.5 s is one event (key bounce). Hit: `microsleep` needs `CANH_BAO`, `yawn` needs `CHU_Y` or above, within [start, end + 3 s].
+- Carry-over: an event that starts while the engine is already at the required level (previous alarm not decayed, or key pressed after the alarm fired)
+  is excluded from recall and latency, counted in `excluded` and listed among the failure cases. Rest at least 7-8 s between events when recording.
 - Metrics: recall per event type; false alarms/min = `CANH_BAO` onsets outside event windows in tinh-tao + nhin-guong logs
   divided by their minutes; median latency = key press to first `CANH_BAO` (microsleep); coverage = share of trusted samples after calibration.
 - Report trust on and off side by side.
@@ -75,6 +77,15 @@ Serves the "Bằng chứng" criterion (numbers, a failure case with its cause, s
 
 Known measurement gaps, stated in the report's limits (deliberately not fixed for now): `dieu-kien-xau` only yields coverage
 (no "correct or KHONG CHAC" rate), no nod scenario, no scenario that isolates PERCLOS / the CHU_Y it causes.
+Limitations seen in the first real logs (2026-10-16, 8 logs, 2.8 min, number of people not recorded):
+- **Tiny sample.** Recall intervals are wide (microsleep 4/7: 25-85%, yawn 2/4: 15-85%). False alarms were measured over only ~1.2 min of quiet scenarios (tinh-tao 37 s, nhin-guong 33 s), so "0 false alarms" proves little.
+- **Recording hygiene.** Rests between events were 1.9-6.6 s instead of the 8 s needed for the state to return to TINH; 6 events were excluded and the yawn log is mostly unusable. Labels were sometimes pressed late (before the alarm) or released and pressed again.
+- **The trust check has not shown a benefit yet.** In the quiet logs EAR never went below the close threshold, even with the head turned up to 53 deg, so there was nothing to suppress with the check off (0 false alarms both ways), while it cost coverage (98% -> 86%). Needs a longer (~3 s) mirror-look scenario before claiming it reduces false alarms.
+- **Head drop loses the face.** In the nod-and-close log MediaPipe lost the face in 44-50% of the frames of each event (31-36 of 67-83), so the trusted stretch was at most 1.1-1.3 s and `closedMs` never reached 1.5 s. The labelled closures were also short (1.2-1.6 s), so this log mixes two causes. The auto-generated cause hint only mentions lost trust above 50% of frames and therefore blamed "closure too short".
+- **Yawn duration is borderline.** Misses at 1.7 s and 2.0 s of open mouth against `yawnMs` 2.0 s. Lowering it only looked better because more events were excluded (see the sweep in progress.md).
+- **Thresholds were not fitted to these logs.** `closedMs` 1500 and `yawnMs` 2000 were kept; `marDelta`, `yawLimit`, `pitchLimit` come from hand measurements by one person.
+- **No bad-condition data** (glasses, strong light, dim light): coverage and correct-or-unsure rate there are unmeasured.
+
 Known design blind spot, also in the report: while the head is out of range (e.g. slumped) the state is held for `holdMs` (3 s) and then falls to TINH, so a driver asleep with the head down stops being alerted.
 
 ## Page panel
