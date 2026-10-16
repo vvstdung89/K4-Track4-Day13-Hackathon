@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DrowsyGuard Demo</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>DrowsyGuard</h1>
+    <span id="status">Loading model…</span>
+  </header>
+
+  <main>
+    <section class="pane">
+      <h2>Camera</h2>
+      <div class="stage mirror">
+        <video id="video" autoplay muted playsinline></video>
+        <canvas id="overlay"></canvas>
+      </div>
+    </section>
+
+    <section class="pane" id="eyes-pane" data-face="0">
+      <h2>Eyes</h2>
+      <figure>
+        <canvas id="left-eye" class="eye mirror" width="480" height="300"></canvas>
+        <figcaption>Left eye</figcaption>
+      </figure>
+      <figure>
+        <canvas id="right-eye" class="eye mirror" width="480" height="300"></canvas>
+        <figcaption>Right eye</figcaption>
+      </figure>
+    </section>
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

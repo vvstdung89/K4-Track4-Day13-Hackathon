@@ -1,0 +1,9 @@
+{
+  "name": "drowsyguard",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "python -m http.server 8000 -d web",
+    "test": "node --test"
+  }
+}
