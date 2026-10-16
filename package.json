@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "start": "python -m http.server 8000 -d web",
-    "test": "node --test"
+    "test": "node --test",
+    "score": "node scripts/score.js"
   }
 }
