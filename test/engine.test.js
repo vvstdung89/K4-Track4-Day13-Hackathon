@@ -107,10 +107,26 @@ test("head turned beyond the limit (relative to the calibrated pose) is untruste
   assert.ok(!states(e, 1000, () => ({ ear: 0.1 })).includes("CANH_BAO"));
 });
 
-test("angles are relative: a resting pitch of 12 deg is fine, 12 + 25 is not", () => {
+test("angles are relative: a resting pitch of 12 deg is fine, a nod of 20 stays trusted, 12 + 30 does not", () => {
   const e = withCalibration();
   assert.equal(feed(e, 200).trusted, true);
-  assert.equal(feed(e, 200, () => ({ pitch: 12 + 25 })).trusted, false);
+  assert.equal(feed(e, 200, () => ({ pitch: 12 + 20 })).trusted, true);
+  assert.equal(feed(e, 200, () => ({ pitch: 12 + 30 })).trusted, false);
+});
+
+test("a yaw of 30 deg (hard turn) is untrusted, 15 deg is not", () => {
+  const e = withCalibration();
+  assert.equal(feed(e, 200, () => ({ yaw: CALIB.yaw0 + 15 })).trusted, true);
+  assert.equal(feed(e, 200, () => ({ yaw: CALIB.yaw0 + 30 })).trusted, false);
+});
+
+test("a yawn at MAR 0.31 counts, talking at 0.2 does not", () => {
+  const yawn = withCalibration();
+  feed(yawn, 500);
+  assert.ok(states(yawn, 2300, () => ({ mar: 0.31 })).includes("CHU_Y"));
+  const talk = withCalibration();
+  feed(talk, 500);
+  assert.ok(!states(talk, 5000, () => ({ mar: 0.2 })).includes("CHU_Y"));
 });
 
 test("trust: false ignores head angles (for the on/off comparison)", () => {

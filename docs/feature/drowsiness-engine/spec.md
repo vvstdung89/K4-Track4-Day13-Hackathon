@@ -39,11 +39,11 @@ Until calibrated, state is `TINH` and no alert is raised.
 
 **Signals** (trusted samples only; EAR median-of-3 first):
 - closed: `ear < 0.55*earOpen`, reopen at `ear > 0.70*earOpen`. `closedMs` = continuous closed time.
-- yawn: `mar > marClosed + 0.35`, `yawnMs` = continuous time.
+- yawn: `mar > marClosed + 0.27`, `yawnMs` = continuous time.
 - `perclos`: closed-time fraction over the last 60 s, time-weighted; used only with >= 20 s of trusted data.
   (Closed = below 55% of own open level, not the standard 80% closure; say so when presenting.)
 
-**Trust**: untrusted when no face, |yaw - yaw0| > 25 deg or |pitch - pitch0| > 20 deg (angles relative to the calibrated pose). Untrusted samples reset `closedMs` and `yawnMs`
+**Trust**: untrusted when no face, |yaw - yaw0| > 20 deg or |pitch - pitch0| > 25 deg (angles relative to the calibrated pose). Untrusted samples reset `closedMs` and `yawnMs`
 and are excluded from `perclos`. The current state is held for at most 3 s, then falls to `TINH`.
 `config.trust = false` disables the check (for on/off comparison).
 
@@ -75,6 +75,7 @@ Serves the "Bằng chứng" criterion (numbers, a failure case with its cause, s
 
 Known measurement gaps, stated in the report's limits (deliberately not fixed for now): `dieu-kien-xau` only yields coverage
 (no "correct or KHONG CHAC" rate), no nod scenario, no scenario that isolates PERCLOS / the CHU_Y it causes.
+Known design blind spot, also in the report: while the head is out of range (e.g. slumped) the state is held for `holdMs` (3 s) and then falls to TINH, so a driver asleep with the head down stops being alerted.
 
 ## Page panel
 State badge (green / amber / red / grey `KHONG CHAC`; while an alarm is held during an untrusted spell the red badge stays, marked as held), bars for `closedMs` (vs 1500), `perclos`, `yawnMs`;

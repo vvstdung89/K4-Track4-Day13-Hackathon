@@ -6,10 +6,10 @@ export const DEFAULTS = {
   calibration: null, // { earOpen, marClosed, yaw0, pitch0 }: skips calibration (replay)
   calibrateMs: 10000, calibMinFaceFrac: 0.7, calibMinSamples: 100, earOpenRange: [0.18, 0.45],
   closeRatio: 0.55, reopenRatio: 0.7, // eye closed below closeRatio * earOpen, open again above reopenRatio * earOpen
-  marDelta: 0.35, // mouth open above marClosed + marDelta (closes below 70% of that)
+  marDelta: 0.27, // mouth open above marClosed + marDelta (closes below 70% of that); measured: closed 0, talking ~0.2, yawn 0.30+
   closedMs: 1500, yawnMs: 2000,
   perclosWindowMs: 60000, perclosMinMs: 20000, perclosAttention: 0.15, perclosAlarm: 0.3,
-  yawLimit: 25, pitchLimit: 20, // degrees away from the calibrated pose
+  yawLimit: 20, pitchLimit: 25, // degrees away from the calibrated pose; measured: hard turn ~30, nod 15+
   holdMs: 3000, // keep the state this long while untrusted
   dwellMs: 3000, // calm time before dropping one level
 };
