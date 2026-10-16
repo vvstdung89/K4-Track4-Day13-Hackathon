@@ -5,6 +5,7 @@
   "scripts": {
     "start": "python -m http.server 8000 -d web",
     "test": "node --test",
-    "score": "node scripts/score.js"
+    "score": "node scripts/score.js",
+    "evidence": "node scripts/evidence.js"
   }
 }

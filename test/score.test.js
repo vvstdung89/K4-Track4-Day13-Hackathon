@@ -68,3 +68,59 @@ test("a log without a calibration header calibrates itself from its own samples"
   assert.equal(r.falseAlarms.count, 0);
   assert.ok(r.coverage > 0.5);
 });
+
+// ---- evidence: confidence interval and failure cases ----
+import { wilson } from "../web/score.js";
+
+test("wilson 95% interval: 10/10 only proves recall >= ~72%", () => {
+  const [lo, hi] = wilson(10, 10);
+  assert.ok(Math.abs(lo - 0.7225) < 0.001, `${lo}`);
+  assert.ok(Math.abs(hi - 1) < 1e-9);
+  const [l2, h2] = wilson(5, 10);
+  assert.ok(Math.abs(l2 - 0.2366) < 0.001 && Math.abs(h2 - 0.7634) < 0.001);
+  assert.equal(wilson(0, 0), null);
+});
+
+const mic = (at, labelEnd = 12000) =>
+  makeLog("microsleep", 30, (t) => (inRange(t, 10000, 12000) ? at : {}), (t) => (inRange(t, 10000, labelEnd) ? "microsleep" : ""));
+
+test("a clean log has no failure cases", () => {
+  assert.deepEqual(scoreLogs([mic({ ear: 0.1 })]).failures, []);
+});
+
+test("miss because the head was turned: cause names the trust check", () => {
+  const f = scoreLogs([mic({ ear: 0.1, yaw: 50 })]).failures;
+  assert.equal(f.length, 1);
+  assert.equal(f[0].kind, "miss");
+  assert.equal(f[0].event, "microsleep");
+  assert.match(f[0].cause, /tin cậy/);
+});
+
+test("miss because the eyes never got low enough: cause says EAR stayed above the threshold", () => {
+  const f = scoreLogs([mic({ ear: 0.2 })]).failures;
+  assert.match(f[0].cause, /EAR chỉ xuống/);
+});
+
+test("miss because the closure was too short: cause gives the longest closure", () => {
+  const log = makeLog("microsleep", 30, (t) => (inRange(t, 10000, 11000) ? { ear: 0.1 } : {}), (t) => (inRange(t, 10000, 12000) ? "microsleep" : ""));
+  assert.match(scoreLogs([log]).failures[0].cause, /ngắn hơn/);
+});
+
+test("missed yawn: cause says MAR stayed below the yawn threshold", () => {
+  const log = makeLog("ngap", 30, (t) => (inRange(t, 10000, 12300) ? { mar: 0.2 } : {}), (t) => (inRange(t, 10000, 12300) ? "yawn" : ""));
+  const f = scoreLogs([log]).failures;
+  assert.equal(f[0].event, "yawn");
+  assert.match(f[0].cause, /MAR chỉ đạt/);
+});
+
+test("false alarm: reported with scenario, time and a cause", () => {
+  const log = makeLog("tinh-tao", 60, (t) => (inRange(t, 10000, 12500) ? { ear: 0.1 } : {}));
+  log.name = "tinh-tao-1.csv";
+  const f = scoreLogs([log]).failures;
+  assert.equal(f.length, 1);
+  assert.equal(f[0].kind, "false_alarm");
+  assert.equal(f[0].scenario, "tinh-tao");
+  assert.equal(f[0].file, "tinh-tao-1.csv");
+  assert.ok(f[0].t > 11000 && f[0].t < 12500);
+  assert.match(f[0].cause, /nhắm liên tục/);
+});
