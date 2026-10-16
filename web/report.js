@@ -42,7 +42,7 @@ export function evidenceMarkdown(cmp, { logs, people } = {}) {
 
   const failures = on.failures.length
     ? on.failures.map((f, i) => {
-        const what = f.kind === "miss" ? `bỏ sót ${NAMES[f.event]}` : "báo nhầm";
+        const what = f.kind === "miss" ? `bỏ sót ${NAMES[f.event]}` : f.kind === "excluded" ? `loại khỏi số đo (${NAMES[f.event]})` : "báo nhầm";
         return `${i + 1}. **${what}** (${f.scenario ?? "?"}${f.file ? `, ${f.file}` : ""}, ${(f.t / 1000).toFixed(1)} s): ${f.cause}. *Gợi ý tự động, cần xác nhận.*`;
       })
     : ["Chưa có ca lỗi trong các log này. Cần ghi thêm dữ liệu khó (kính, ánh sáng xấu, quay đầu) trước khi nói về giới hạn."];
@@ -70,7 +70,8 @@ export function evidenceMarkdown(cmp, { logs, people } = {}) {
     ...table,
     "",
     "## Cỡ mẫu",
-    `${logs.length} log, ${minutes.toFixed(1)} phút, ${who}; ${on.recall.microsleep.total} sự kiện microsleep, ${on.recall.yawn.total} sự kiện ngáp.`,
+    `${logs.length} log, ${minutes.toFixed(1)} phút, ${who}; ${on.recall.microsleep.total} sự kiện microsleep, ${on.recall.yawn.total} sự kiện ngáp` +
+      (on.excluded && on.excluded.microsleep + on.excluded.yawn ? `; loại ${on.excluded.microsleep + on.excluded.yawn} sự kiện bị nhiễu (xem bên dưới).` : "."),
     "",
     "## Ca lỗi (kiểm tra tin cậy bật)",
     ...failures,

@@ -124,3 +124,35 @@ test("false alarm: reported with scenario, time and a cause", () => {
   assert.ok(f[0].t > 11000 && f[0].t < 12500);
   assert.match(f[0].cause, /nhắm liên tục/);
 });
+
+// ---- scoring hygiene: split labels and carry-over alarms ----
+test("a label released and pressed again within 0.5 s is one event", () => {
+  const log = makeLog("microsleep", 30, (t) => (inRange(t, 10000, 14000) ? { ear: 0.1 } : {}), (t) =>
+    inRange(t, 10000, 10500) || inRange(t, 10630, 14000) ? "microsleep" : "");
+  assert.deepEqual(scoreLogs([log]).recall.microsleep, { hit: 1, total: 1 });
+});
+
+test("two events 0.5 s+ apart stay separate", () => {
+  const log = makeLog("microsleep", 40, (t) => (inRange(t, 10000, 12000) || inRange(t, 21000, 23000) ? { ear: 0.1 } : {}), (t) =>
+    inRange(t, 10000, 12000) || inRange(t, 21000, 23000) ? "microsleep" : "");
+  assert.deepEqual(scoreLogs([log]).recall.microsleep, { hit: 2, total: 2 });
+});
+
+test("an event that starts while the previous alarm is still on is excluded, not credited", () => {
+  const closed = (t) => (inRange(t, 10000, 12000) || inRange(t, 15000, 17000) ? { ear: 0.1 } : {});
+  const label = (t) => (inRange(t, 10000, 12000) || inRange(t, 15000, 17000) ? "microsleep" : "");
+  const r = scoreLogs([makeLog("microsleep", 40, closed, label)]);
+  assert.deepEqual(r.recall.microsleep, { hit: 1, total: 1 }); // only the first one counts
+  assert.equal(r.excluded.microsleep, 1);
+  assert.ok(r.latencyMs > 1400 && r.latencyMs < 1800, `latency ${r.latencyMs}`); // the carried-over 0 s is not in the median
+  const f = r.failures.find((x) => x.kind === "excluded");
+  assert.equal(f.event, "microsleep");
+  assert.match(f.cause, /đã ở mức cảnh báo/);
+});
+
+test("a key pressed after the alarm already fired is excluded too (late key)", () => {
+  const log = makeLog("microsleep", 30, (t) => (inRange(t, 10000, 14000) ? { ear: 0.1 } : {}), (t) => (inRange(t, 13000, 14000) ? "microsleep" : ""));
+  const r = scoreLogs([log]);
+  assert.deepEqual(r.recall.microsleep, { hit: 0, total: 0 });
+  assert.equal(r.excluded.microsleep, 1);
+});

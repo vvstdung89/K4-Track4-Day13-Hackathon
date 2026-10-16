@@ -48,3 +48,16 @@ test("limits name what the scenarios do not measure", () => {
 test("limits state the blind spot: a held alarm expires while the head is out of range", () => {
   assert.match(evidenceMarkdown(cmp, { logs, people: 3 }), /gục[^\n]*KHÔNG CHẮC[^\n]*3 giây[^\n]*không còn được cảnh báo/);
 });
+
+test("excluded events are listed as excluded and counted in the sample line", () => {
+  const withExcluded = {
+    on: result({
+      excluded: { microsleep: 2, yawn: 0 },
+      failures: [{ kind: "excluded", event: "microsleep", scenario: "microsleep", file: "m.csv", t: 17000, cause: "đã ở mức cảnh báo khi sự kiện bắt đầu" }],
+    }),
+    off: result(),
+  };
+  const md = evidenceMarkdown(withExcluded, { logs, people: 3 });
+  assert.match(md, /loại khỏi số đo/);
+  assert.match(md, /loại 2 sự kiện/);
+});

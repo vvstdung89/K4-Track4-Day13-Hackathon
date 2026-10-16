@@ -21,14 +21,16 @@ export function wilson(hit, total, z = 1.96) {
   return [Math.max(0, center - half), Math.min(1, center + half)];
 }
 
-// Runs of the same non-empty label -> { name, t0, t1 }.
+const MERGE_GAP_MS = 500; // a label released and pressed again within this is the same event (key bounce)
+
+// Labelled stretches -> { name, t0, t1 }; same label closer than MERGE_GAP_MS merges.
 function eventsOf(samples) {
   const out = [];
   for (const s of samples) {
+    if (!s.label) continue;
     const last = out[out.length - 1];
-    if (s.label && last && last.name === s.label && last.open) last.t1 = s.t;
-    else if (s.label) out.push({ name: s.label, t0: s.t, t1: s.t, open: true });
-    else if (last) last.open = false;
+    if (last && last.name === s.label && s.t - last.t1 < MERGE_GAP_MS) last.t1 = s.t;
+    else out.push({ name: s.label, t0: s.t, t1: s.t });
   }
   return out.filter((e) => e.name in EXPECT);
 }
@@ -68,6 +70,7 @@ function falseAlarmCause(row, context, cfg) {
 
 export function scoreLogs(logs, config = {}) {
   const recall = { microsleep: { hit: 0, total: 0 }, yawn: { hit: 0, total: 0 } };
+  const excluded = { microsleep: 0, yawn: 0 };
   const latencies = [], failures = [];
   let falseAlarms = 0, quietMs = 0, trusted = 0, running = 0;
 
@@ -81,6 +84,15 @@ export function scoreLogs(logs, config = {}) {
     running += run.length;
 
     for (const ev of events) {
+      // Already at the required level just before the event: the earlier alarm has not decayed (rest too short)
+      // or the key was pressed after the alarm fired. Crediting it would inflate recall and shrink the latency.
+      const before = run.filter((r) => r.t < ev.t0).at(-1);
+      if (before && level(before) >= EXPECT[ev.name]) {
+        excluded[ev.name]++;
+        failures.push({ kind: "excluded", event: ev.name, scenario: log.scenario, file: log.name, t: ev.t0,
+          cause: "đã ở mức cảnh báo khi sự kiện bắt đầu (cảnh báo trước đó chưa hạ, hoặc nhấn phím sau khi cảnh báo đã bật); nghỉ ít nhất 7–8 s giữa hai sự kiện" });
+        continue;
+      }
       recall[ev.name].total++;
       const win = run.filter((r) => r.t >= ev.t0 && r.t <= ev.t1 + GRACE_MS);
       const first = win.find((r) => level(r) >= EXPECT[ev.name]);
@@ -110,6 +122,7 @@ export function scoreLogs(logs, config = {}) {
     falseAlarms: { count: falseAlarms, minutes, perMin: minutes > 0 ? falseAlarms / minutes : null },
     latencyMs: latencies.length ? median(latencies) : null,
     coverage: running ? trusted / running : null,
+    excluded,
     failures,
   };
 }
