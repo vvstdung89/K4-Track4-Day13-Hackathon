@@ -24,3 +24,13 @@ export function smoothBox(prev, next, alpha = 0.4) {
   const mix = (k) => prev[k] + (next[k] - prev[k]) * alpha;
   return { x: mix("x"), y: mix("y"), w: mix("w"), h: mix("h") };
 }
+
+// EAR landmarks p1..p6: corner, upper lid, upper lid, corner, lower lid, lower lid.
+export const LEFT_EAR = [362, 385, 387, 263, 373, 380];
+export const RIGHT_EAR = [33, 160, 158, 133, 153, 144];
+
+// Eye aspect ratio (Soukupova & Cech 2016), measured in pixels.
+export function ear(p, width, height) {
+  const d = (a, b) => Math.hypot((a.x - b.x) * width, (a.y - b.y) * height);
+  return (d(p[1], p[5]) + d(p[2], p[4])) / (2 * d(p[0], p[3]));
+}

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { eyeBox, smoothBox, LEFT_EYE, RIGHT_EYE } from "../web/eyes.js";
+import { eyeBox, smoothBox, ear, LEFT_EYE, RIGHT_EYE, LEFT_EAR, RIGHT_EAR } from "../web/eyes.js";
 
 const near = (a, b) => assert.ok(Math.abs(a - b) < 1e-6, `${a} != ${b}`);
 
@@ -32,4 +32,26 @@ test("smoothBox blends toward the new box and passes through when no previous", 
   assert.deepEqual(smoothBox(null, next, 0.5), next);
   const s = smoothBox({ x: 0, y: 0, w: 80, h: 40 }, next, 0.5);
   assert.deepEqual(s, { x: 5, y: 5, w: 90, h: 45 });
+});
+
+// p1..p6 in order: corner, upper, upper, corner, lower, lower
+const eyePts = (w, h) => [
+  { x: 0, y: 0 }, { x: w / 3, y: -h / 2 }, { x: (2 * w) / 3, y: -h / 2 },
+  { x: w, y: 0 }, { x: (2 * w) / 3, y: h / 2 }, { x: w / 3, y: h / 2 },
+];
+
+test("EAR index lists have 6 landmarks each", () => {
+  assert.equal(LEFT_EAR.length, 6);
+  assert.equal(RIGHT_EAR.length, 6);
+});
+
+test("ear = lid opening / corner distance", () => {
+  near(ear(eyePts(0.3, 0.09), 1, 1), 0.3); // (0.09 + 0.09) / (2 * 0.3)
+  near(ear(eyePts(0.3, 0), 1, 1), 0); // closed
+});
+
+test("ear measures in pixels, not normalized units", () => {
+  // normalized 0.1 wide x 0.05 tall on a 2:1 frame -> square in pixels -> EAR 1
+  const pts = eyePts(0.1, 0.05).map((p) => ({ x: p.x + 0.5, y: p.y + 0.5 }));
+  near(ear(pts, 1000, 2000), 1);
 });

@@ -1,18 +1,22 @@
 import { FaceLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.21/vision_bundle.mjs";
-import { LEFT_EYE, RIGHT_EYE, eyeBox, smoothBox } from "./eyes.js";
+import { LEFT_EYE, RIGHT_EYE, LEFT_EAR, RIGHT_EAR, eyeBox, smoothBox, ear } from "./eyes.js";
 
 const WASM = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.21/wasm";
 const MODEL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
 const ACCENT = "#3fd0a0";
+const CHART_SECONDS = 10, CHART_MAX = 0.5;
 
 const video = document.getElementById("video");
 const overlay = document.getElementById("overlay");
 const statusEl = document.getElementById("status");
 const eyesPane = document.getElementById("eyes-pane");
+const avgEl = document.getElementById("avg-ear");
+const chart = document.getElementById("ear-chart");
 const eyes = [
-  { idx: LEFT_EYE, canvas: document.getElementById("left-eye"), box: null },
-  { idx: RIGHT_EYE, canvas: document.getElementById("right-eye"), box: null },
+  { idx: LEFT_EYE, earIdx: LEFT_EAR, canvas: document.getElementById("left-eye"), label: document.getElementById("left-ear"), box: null },
+  { idx: RIGHT_EYE, earIdx: RIGHT_EAR, canvas: document.getElementById("right-eye"), label: document.getElementById("right-ear"), box: null },
 ];
+const history = []; // { t: ms, v: average EAR or null when no face }
 
 async function main() {
   const fileset = await FilesetResolver.forVisionTasks(WASM);
@@ -39,7 +43,11 @@ async function main() {
       const face = landmarker.detectForVideo(video, now).faceLandmarks[0];
       fps = fps * 0.9 + (1000 / (now - lastFrame)) * 0.1;
       lastFrame = now;
-      draw(face);
+      const avg = draw(face);
+      avgEl.textContent = avg === null ? "–" : avg.toFixed(3);
+      history.push({ t: now, v: avg });
+      while (history[0].t < now - CHART_SECONDS * 1000) history.shift();
+      drawChart(now);
       statusEl.textContent = `${face ? "Face found" : "No face"} · ${fps.toFixed(0)} fps`;
     }
     requestAnimationFrame(loop);
@@ -53,11 +61,16 @@ function draw(face) {
   ctx.clearRect(0, 0, W, H);
   eyesPane.dataset.face = face ? "1" : "0";
   if (!face) {
-    eyes.forEach((e) => (e.box = null));
-    return;
+    eyes.forEach((e) => ((e.box = null), (e.label.textContent = "–")));
+    return null;
   }
 
+  let sum = 0;
   for (const e of eyes) {
+    const value = ear(e.earIdx.map((i) => face[i]), W, H);
+    e.label.textContent = value.toFixed(3);
+    sum += value;
+
     const pts = e.idx.map((i) => face[i]);
     e.box = smoothBox(e.box, eyeBox(pts, W, H));
     const b = e.box;
@@ -74,8 +87,50 @@ function draw(face) {
     ec.fillStyle = "#000";
     ec.fillRect(0, 0, c.width, c.height);
     ec.drawImage(video, b.x, b.y, b.w, b.h, 0, 0, c.width, c.height);
-    contour(ec, pts.map((p) => [(p.x * W - b.x) * sx, (p.y * H - b.y) * sy]), 2);
+    const toCrop = (p) => [(p.x * W - b.x) * sx, (p.y * H - b.y) * sy];
+    contour(ec, pts.map(toCrop), 2);
+
+    // the 6 EAR points
+    ec.fillStyle = "#fff";
+    for (const [x, y] of e.earIdx.map((i) => toCrop(face[i]))) {
+      ec.beginPath();
+      ec.arc(x, y, 4, 0, 2 * Math.PI);
+      ec.fill();
+    }
   }
+  return sum / eyes.length;
+}
+
+// Rolling line chart of average EAR; gaps where no face was found.
+function drawChart(now) {
+  const ctx = chart.getContext("2d");
+  const W = chart.width, H = chart.height;
+  const x = (t) => W - ((now - t) / (CHART_SECONDS * 1000)) * W;
+  const y = (v) => H - (v / CHART_MAX) * H;
+  ctx.clearRect(0, 0, W, H);
+
+  ctx.strokeStyle = "#2a313c";
+  ctx.fillStyle = "#8b949e";
+  ctx.font = "11px system-ui";
+  ctx.lineWidth = 1;
+  for (const v of [0.1, 0.2, 0.3, 0.4]) {
+    ctx.beginPath();
+    ctx.moveTo(0, y(v));
+    ctx.lineTo(W, y(v));
+    ctx.stroke();
+    ctx.fillText(v.toFixed(1), 4, y(v) - 3);
+  }
+
+  ctx.strokeStyle = ACCENT;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  let pen = false;
+  for (const { t, v } of history) {
+    if (v === null) { pen = false; continue; }
+    pen ? ctx.lineTo(x(t), y(v)) : ctx.moveTo(x(t), y(v));
+    pen = true;
+  }
+  ctx.stroke();
 }
 
 function contour(ctx, xy, width) {

@@ -53,6 +53,10 @@ figure { margin: 0 0 12px; }
 figcaption { margin-top: 4px; color: var(--muted); font-size: 12px; }
 .eye { display: block; width: 100%; border-radius: 4px; background: #000; }
 #eyes-pane[data-face="0"] .eye { opacity: .25; }
+figcaption b { color: var(--text); font-variant-numeric: tabular-nums; }
+.ear-avg { margin-bottom: 4px; color: var(--muted); }
+.ear-avg b { color: var(--accent); font-size: 28px; font-variant-numeric: tabular-nums; margin-left: 6px; }
+.chart { display: block; width: 100%; border-radius: 4px; background: var(--bg); }
 
 @media (max-width: 800px) {
   main { grid-template-columns: 1fr; }
