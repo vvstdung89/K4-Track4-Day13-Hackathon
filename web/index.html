@@ -12,6 +12,39 @@
     <span id="status">Loading model…</span>
   </header>
 
+  <section id="panel" class="pane">
+    <div id="badge" data-s="wait">Chờ khuôn mặt</div>
+    <div class="signals">
+      <label>Nhắm mắt <i class="bar"><b id="bar-closed"></b></i> <span id="val-closed">0.0 s</span></label>
+      <label>PERCLOS <i class="bar"><b id="bar-perclos"></b></i> <span id="val-perclos">–</span></label>
+      <label>Ngáp <i class="bar"><b id="bar-yawn"></b></i> <span id="val-yawn">0.0 s</span></label>
+    </div>
+    <div class="readout">MAR <b id="val-mar">–</b> · yaw <b id="val-yaw">–</b>° · pitch <b id="val-pitch">–</b>° (so với tư thế chuẩn)</div>
+    <div class="controls">
+      <button id="recal" type="button">Hiệu chuẩn lại</button>
+      <button id="sound" type="button">Âm thanh: tắt</button>
+    </div>
+  </section>
+
+  <section id="session" class="pane">
+    <select id="scenario" aria-label="Kịch bản">
+      <option value="tinh-tao">1. Tỉnh táo</option>
+      <option value="nhin-guong">2. Nhìn gương</option>
+      <option value="microsleep">3. Microsleep</option>
+      <option value="ngap">4. Ngáp</option>
+      <option value="dieu-kien-xau">5. Điều kiện xấu</option>
+    </select>
+    <button id="rec" type="button">Ghi</button>
+    <span id="rec-state">Giữ phím 1 = microsleep · 2 = ngáp khi diễn</span>
+    <button id="download" type="button" disabled>Tải CSV</button>
+    <button id="load-btn" type="button">Nạp CSV</button>
+    <input id="load" type="file" accept=".csv" multiple hidden>
+    <button id="score" type="button">Chấm điểm</button>
+    <button id="clear" type="button">Xóa phiên</button>
+    <span id="logs-count">0 log</span>
+    <table id="report"></table>
+  </section>
+
   <main>
     <section class="pane">
       <h2>Camera</h2>

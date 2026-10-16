@@ -61,3 +61,32 @@ figcaption b { color: var(--text); font-variant-numeric: tabular-nums; }
 @media (max-width: 800px) {
   main { grid-template-columns: 1fr; }
 }
+
+#panel { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 24px; margin: 16px 16px 0; }
+#badge { min-width: 190px; padding: 10px 16px; border-radius: 6px; font-size: 20px; font-weight: 700; text-align: center; background: var(--line); }
+#badge[data-s="TINH"] { background: #1f6f4a; }
+#badge[data-s="CHU_Y"] { background: #9a6700; }
+#badge[data-s="CANH_BAO"] { background: #b62324; animation: pulse .6s infinite alternate; }
+#badge[data-s="unsure"] { background: #484f58; }
+@keyframes pulse { to { opacity: .55; } }
+.signals { display: grid; gap: 4px; }
+.signals label { display: grid; grid-template-columns: 76px 160px 56px; align-items: center; gap: 8px; color: var(--muted); }
+.signals span { color: var(--text); font-variant-numeric: tabular-nums; }
+.bar { display: block; height: 8px; border-radius: 4px; background: var(--bg); overflow: hidden; }
+.bar b { display: block; height: 100%; width: 0; background: var(--accent); }
+.readout { color: var(--muted); font-variant-numeric: tabular-nums; }
+.readout b { color: var(--text); }
+.controls { display: flex; gap: 8px; margin-left: auto; }
+button { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+
+#session { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 16px 16px 0; }
+select { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+button:disabled { opacity: .4; cursor: default; }
+#rec-state { color: var(--muted); font-variant-numeric: tabular-nums; }
+#rec-state.on { color: #f85149; font-weight: 600; }
+#logs-count { color: var(--muted); margin-left: auto; }
+#report { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+#report:empty { display: none; }
+#report td { padding: 4px 12px 4px 0; border-top: 1px solid var(--line); }
+#report tr:first-child td { color: var(--muted); border-top: 0; }

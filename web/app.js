@@ -1,5 +1,10 @@
 import { FaceLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.21/vision_bundle.mjs";
 import { LEFT_EYE, RIGHT_EYE, LEFT_EAR, RIGHT_EAR, eyeBox, smoothBox, ear } from "./eyes.js";
+import { toSample } from "./features.js";
+import { createEngine } from "./engine.js";
+import { toCsv, parseCsv } from "./log.js";
+import { compareTrust, scenarioFromName } from "./score.js";
+import { reportRows } from "./report.js";
 
 const WASM = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.21/wasm";
 const MODEL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
@@ -18,12 +23,23 @@ const eyes = [
 ];
 const history = []; // { t: ms, v: average EAR or null when no face }
 
+const engine = createEngine();
+const $ = (id) => document.getElementById(id);
+const badge = $("badge"), BEEP_COOLDOWN_MS = 5000;
+let audio = null, lastBeep = 0;
+$("recal").onclick = () => (audio?.resume(), engine.recalibrate());
+$("sound").onclick = () => {
+  if (audio) { audio.close(); audio = null; } else audio = new AudioContext(); // created on a click: browsers block it otherwise
+  $("sound").textContent = `Âm thanh: ${audio ? "bật" : "tắt"}`;
+};
+
 async function main() {
   const fileset = await FilesetResolver.forVisionTasks(WASM);
   const landmarker = await FaceLandmarker.createFromOptions(fileset, {
     baseOptions: { modelAssetPath: MODEL, delegate: "CPU" },
     runningMode: "VIDEO",
     numFaces: 1,
+    outputFacialTransformationMatrixes: true,
   });
 
   statusEl.textContent = "Requesting camera…";
@@ -40,19 +56,116 @@ async function main() {
     if (video.currentTime !== lastTime) {
       lastTime = video.currentTime;
       const now = performance.now();
-      const face = landmarker.detectForVideo(video, now).faceLandmarks[0];
+      const result = landmarker.detectForVideo(video, now);
+      const face = result.faceLandmarks[0];
+      const sample = toSample(result, overlay.width, overlay.height, now);
+      const out = engine.step(sample);
+      updatePanel(out, sample, now);
+      if (recording) {
+        recording.samples.push({ ...sample, label: held });
+        $("rec-state").className = "on";
+        $("rec-state").textContent = `● REC ${recording.samples.length} mẫu · nhãn: ${held || "–"}`;
+      }
       fps = fps * 0.9 + (1000 / (now - lastFrame)) * 0.1;
       lastFrame = now;
       const avg = draw(face);
       avgEl.textContent = avg === null ? "–" : avg.toFixed(3);
       history.push({ t: now, v: avg });
       while (history[0].t < now - CHART_SECONDS * 1000) history.shift();
-      drawChart(now);
+      drawChart(now, out.thresholds);
       statusEl.textContent = `${face ? "Face found" : "No face"} · ${fps.toFixed(0)} fps`;
     }
     requestAnimationFrame(loop);
   }
   loop();
+}
+
+// Recording: raw samples + the key held at that moment ("1" microsleep, "2" yawn).
+const KEY_LABEL = { 1: "microsleep", 2: "yawn" };
+const logs = []; // { scenario, calibration, samples } recorded or loaded this session
+let recording = null, held = "", lastCsv = null;
+
+const isTyping = (e) => e.target.matches("select, input, textarea");
+addEventListener("keydown", (e) => { if (!e.repeat && !isTyping(e) && KEY_LABEL[e.key]) held = KEY_LABEL[e.key]; });
+addEventListener("keyup", (e) => { if (KEY_LABEL[e.key] === held) held = ""; });
+addEventListener("blur", () => (held = "")); // a key released outside the window must not stay stuck
+
+const countLogs = () => ($("logs-count").textContent = `${logs.length} log`);
+$("scenario").onchange = (e) => e.target.blur();
+$("rec").onclick = () => {
+  if (!recording) {
+    recording = { scenario: $("scenario").value, samples: [] };
+    $("rec").textContent = "Dừng";
+    return;
+  }
+  const { scenario, samples } = recording;
+  recording = null;
+  $("rec").textContent = "Ghi";
+  $("rec-state").className = "";
+  $("rec-state").textContent = `Đã ghi ${samples.length} mẫu (${scenario})`;
+  const calibration = engine.calibration;
+  logs.push({ scenario, calibration, samples });
+  lastCsv = { name: `${scenario}-${new Date().toISOString().replace(/[:.]/g, "-")}.csv`, text: toCsv(samples, { calibration }) };
+  $("download").disabled = false;
+  countLogs();
+};
+$("download").onclick = () => {
+  const a = Object.assign(document.createElement("a"), {
+    href: URL.createObjectURL(new Blob([lastCsv.text], { type: "text/csv" })),
+    download: lastCsv.name,
+  });
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+$("load-btn").onclick = () => $("load").click();
+$("load").onchange = async (e) => {
+  for (const f of e.target.files) logs.push({ scenario: scenarioFromName(f.name), ...parseCsv(await f.text()) });
+  e.target.value = "";
+  countLogs();
+};
+$("score").onclick = () => {
+  const rows = logs.length ? reportRows(compareTrust(logs)) : [];
+  $("report").replaceChildren(...rows.map((r) => {
+    const tr = document.createElement("tr");
+    tr.append(...r.map((c) => Object.assign(document.createElement("td"), { textContent: c })));
+    return tr;
+  }));
+};
+$("clear").onclick = () => (logs.length = 0, countLogs(), $("score").click());
+
+const LABEL = { TINH: "TỈNH", CHU_Y: "CHÚ Ý", CANH_BAO: "CẢNH BÁO" };
+
+function updatePanel(out, s, now) {
+  const { signals: g, calibration: c, phase } = out;
+  let text, key;
+  if (phase === "wait") [text, key] = ["Chờ khuôn mặt", "wait"];
+  else if (phase === "calibrate") {
+    const left = Math.ceil((1 - out.calib.pct) * engine.config.calibrateMs / 1000);
+    [text, key] = [out.calib.failed ? "Hiệu chuẩn lại: nhìn thẳng, mở mắt tự nhiên" : `Hiệu chuẩn… ${left} s, nhìn thẳng`, "calib"];
+  } else if (!out.trusted && out.state === "TINH") [text, key] = ["KHÔNG CHẮC", "unsure"];
+  else [text, key] = [LABEL[out.state] + (out.trusted ? "" : " (giữ)"), out.state];
+  badge.textContent = text;
+  badge.dataset.s = key;
+
+  const cfg = engine.config;
+  $("bar-closed").style.width = `${Math.min(1, g.closedMs / cfg.closedMs) * 100}%`;
+  $("val-closed").textContent = `${(g.closedMs / 1000).toFixed(1)} s`;
+  $("bar-perclos").style.width = `${g.perclos === null ? 0 : Math.min(1, g.perclos / cfg.perclosAlarm) * 100}%`;
+  $("val-perclos").textContent = g.perclos === null ? "–" : `${(g.perclos * 100).toFixed(0)}%`;
+  $("bar-yawn").style.width = `${Math.min(1, g.yawnMs / cfg.yawnMs) * 100}%`;
+  $("val-yawn").textContent = `${(g.yawnMs / 1000).toFixed(1)} s`;
+  $("val-mar").textContent = s.face ? s.mar.toFixed(2) : "–";
+  $("val-yaw").textContent = s.face ? (s.yaw - (c?.yaw0 ?? 0)).toFixed(0) : "–";
+  $("val-pitch").textContent = s.face ? (s.pitch - (c?.pitch0 ?? 0)).toFixed(0) : "–";
+
+  if (out.state === "CANH_BAO" && audio && now - lastBeep >= BEEP_COOLDOWN_MS) {
+    lastBeep = now;
+    const osc = audio.createOscillator();
+    osc.frequency.value = 880;
+    osc.connect(audio.destination);
+    osc.start();
+    osc.stop(audio.currentTime + 0.4);
+  }
 }
 
 function draw(face) {
@@ -102,7 +215,7 @@ function draw(face) {
 }
 
 // Rolling line chart of average EAR; gaps where no face was found.
-function drawChart(now) {
+function drawChart(now, th) {
   const ctx = chart.getContext("2d");
   const W = chart.width, H = chart.height;
   const x = (t) => W - ((now - t) / (CHART_SECONDS * 1000)) * W;
@@ -119,6 +232,18 @@ function drawChart(now) {
     ctx.lineTo(W, y(v));
     ctx.stroke();
     ctx.fillText(v.toFixed(1), 4, y(v) - 3);
+  }
+
+  if (th) {
+    ctx.setLineDash([5, 4]);
+    for (const [v, color] of [[th.closeBelow, "#f85149"], [th.reopenAbove, "#d29922"]]) {
+      ctx.strokeStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(0, y(v));
+      ctx.lineTo(W, y(v));
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
   }
 
   ctx.strokeStyle = ACCENT;
