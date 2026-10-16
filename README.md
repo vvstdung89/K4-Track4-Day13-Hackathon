@@ -24,3 +24,11 @@ File names start with the scenario (e.g. `microsleep-2026-10-16T09-00-00-000Z.cs
 ```
 npm run score -- logs/*.csv     # recall, false alarms/min, latency, coverage; trust check on vs off
 ```
+
+For the judging criterion "Bằng chứng", generate the report (numbers with 95% intervals, failure cases with a cause hint, limits):
+
+```
+npm run evidence -- --people 3 logs/*.csv > evidence.md
+```
+
+The cause hints are automatic guesses; confirm each one before presenting it.

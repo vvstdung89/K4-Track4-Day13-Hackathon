@@ -9,16 +9,19 @@ web/                 the demo page (static, no build step)
   features.js        mar(), headAngles() from the transformation matrix, toSample() -> engine input
   engine.js          createEngine(): calibration -> trust check -> signals -> state (pure, time from sample.t)
   log.js             raw samples <-> CSV (calibration in a "# ..." header line)
-  score.js           replay logs through the engine: recall, false alarms/min, latency, coverage; trust on/off
-  report.js          rows / text for the on/off comparison table
+  score.js           replay logs through the engine: recall, false alarms/min, latency, coverage; trust on/off; wilson(); failure cases with cause hints
+  report.js          comparison table rows (recall with 95% interval) and evidenceMarkdown()
 scripts/
+  logs.js            loads CSV logs (scenario from file name)
   score.js           CLI: npm run score -- logs/*.csv
+  evidence.js        CLI: npm run evidence -- --people N logs/*.csv (Markdown report)
 test/
   eyes.test.js       unit tests for eyes.js (node --test)
   features.test.js   MAR, head angles, toSample
   engine.test.js     calibration, thresholds, hysteresis, trust, state machine
   log.test.js        CSV round trip
-  score.test.js      metrics on synthetic logs, trust on/off
+  score.test.js      metrics on synthetic logs, trust on/off, wilson, failure causes
+  report.test.js     comparison rows and the evidence report
 docs/feature/        per-feature spec / plan / progress
 ```
 

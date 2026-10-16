@@ -65,6 +65,17 @@ All numbers live in `config`; the values above are starting points to tune on re
   divided by their minutes; median latency = key press to first `CANH_BAO` (microsleep); coverage = share of trusted samples after calibration.
 - Report trust on and off side by side.
 
+## Evidence report
+Serves the "Bằng chứng" criterion (numbers, a failure case with its cause, stated limits).
+- `scoreLogs` also returns `failures`: misses and false alarms with file, time and a rule-based cause hint
+  (trust lost, EAR never below threshold, closure too short, MAR below threshold, head tilt, PERCLOS). Hints are a starting point; a person confirms the real cause.
+- Recall is shown with a 95% Wilson interval (rounded outwards), e.g. 10/10 only proves recall >= 72%.
+- `npm run evidence -- --people N logs/*.csv` prints Markdown: numbers (trust on/off), sample size, failure cases, limits.
+  Limits are generated from the data (interval widths, number of people) plus fixed statements; the people count is never guessed.
+
+Known measurement gaps, stated in the report's limits (deliberately not fixed for now): `dieu-kien-xau` only yields coverage
+(no "correct or KHONG CHAC" rate), no nod scenario, no scenario that isolates PERCLOS / the CHU_Y it causes.
+
 ## Page panel
 State badge (green / amber / red / grey `KHONG CHAC`; while an alarm is held during an untrusted spell the red badge stays, marked as held), bars for `closedMs` (vs 1500), `perclos`, `yawnMs`;
 threshold lines on the EAR chart derived from `earOpen`; calibration countdown; Recalibrate; scenario menu; Record/Stop
